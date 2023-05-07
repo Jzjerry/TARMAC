@@ -153,6 +153,26 @@ void Visitor::generateTrojan(std::string filename, unsigned int numTriggers, uns
         std::unordered_set<std::shared_ptr<Edge>> triggersSet;
         std::vector<std::shared_ptr<Edge>> candidate = lowprobEdges;
         std::shared_ptr<Edge> last = nullptr;
+
+        // Expand the candidate with high prob edges
+        // for(size_t i = 0; i < lowprobEdges.size(); i++){
+        //     size_t idx = rand() % payloads.size();
+        //     last = payloads[idx];
+        //     candidate.push_back(last);
+        // }
+
+        // while (triggersSet.size() < numTriggers - 2) {
+        //     size_t candsize = candidate.size();
+        //     if (candsize == 0)  break;
+        //     size_t idx = rand() % candsize;
+        //     last = candidate[idx];
+        //     candidate.erase(candidate.begin() + idx);
+        //     triggersSet.insert(last);
+        //     if (!Edge::satisfiable(triggersSet, assign))
+        //         triggersSet.erase(last);
+        // }
+        // candidate = payloads;
+
         while (triggersSet.size() < numTriggers) {
             size_t candsize = candidate.size();
             if (candsize == 0)  break;

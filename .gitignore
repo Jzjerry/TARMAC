@@ -1,0 +1,8 @@
+*.o
+
+tarmac
+
+Trojans_*/
+tests/
+Debug/
+.vscode/
