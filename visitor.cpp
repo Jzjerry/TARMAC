@@ -154,6 +154,8 @@ void Visitor::generateTrojan(std::string filename, unsigned int numTriggers, uns
         std::vector<std::shared_ptr<Edge>> candidate = lowprobEdges;
         std::shared_ptr<Edge> last = nullptr;
 
+
+        /*
         // Expand the candidate with high prob edges
         // for(size_t i = 0; i < lowprobEdges.size(); i++){
         //     size_t idx = rand() % payloads.size();
@@ -172,7 +174,9 @@ void Visitor::generateTrojan(std::string filename, unsigned int numTriggers, uns
         //         triggersSet.erase(last);
         // }
         // candidate = payloads;
+        */
 
+        // Original Trojan Insertion
         while (triggersSet.size() < numTriggers) {
             size_t candsize = candidate.size();
             if (candsize == 0)  break;
@@ -183,6 +187,42 @@ void Visitor::generateTrojan(std::string filename, unsigned int numTriggers, uns
             if (!Edge::satisfiable(triggersSet, assign))
                 triggersSet.erase(last);
         }
+
+        /* 
+        // Try to increase logical level distance
+        // while (triggersSet.size() < numTriggers) {
+        //     size_t candsize = candidate.size();
+        //     if (candsize == 0)  break;
+
+        //     const double thershold = 18;
+        //     double ave_level_dist = 0;
+            
+        //     // Random Choose First Trigger
+        //     for(int trial = 0; trial < 100; ++trial){
+        //         size_t idx = rand() % candsize;
+        //         last = candidate[idx];
+
+        //         ave_level_dist = 0;
+                
+        //         for(auto &e : triggersSet){
+        //             ave_level_dist += std::abs((double)(e->level - last->level));
+        //         }
+        //         ave_level_dist /= triggersSet.size();
+                
+        //         if(triggersSet.size()==0 || ave_level_dist >= thershold){
+        //             candidate.erase(candidate.begin() + idx);
+        //             triggersSet.insert(last);
+        //             if (!Edge::satisfiable(triggersSet, assign))
+        //                 triggersSet.erase(last);
+        //             // else std::cout<<"Trigger("<< last->name<<")"<<" inserted!"<<std::endl;
+        //             break;
+        //         }
+        //         else if(trial == 99){ std::cout<<"Unable to reache the thershold!"<<std::endl; }
+        //     }
+        // }
+        */
+
+
         assert(Edge::satisfiable(triggersSet, assign));
         if (triggersSet.size() == numTriggers) {
             // find potential payload, try a few times
@@ -191,6 +231,22 @@ void Visitor::generateTrojan(std::string filename, unsigned int numTriggers, uns
             for (int trial = 0; (!valid) && (trial < 20); ++trial) {
                 selectedPayload = payloads[rand() % payloads.size()];
                 valid = !loopExist(triggersSet, selectedPayload);
+            /*
+                // Logic Distance Thershold
+                const int thershold = 12;
+                int ave_level_dist = 0;
+
+                for(auto &e : triggersSet){
+                    int dist = (e->level - selectedPayload->level);
+                    ave_level_dist += (dist > 0) ? dist : -dist;
+                }
+                ave_level_dist /= numTriggers;
+
+                valid = valid && (ave_level_dist > thershold);
+                if(valid){
+                    // std::cout<<"Payload Selected! Ave_dist = "<<ave_level_dist<<std::endl; 
+                }
+            */
             }
         
             if (!valid) continue;

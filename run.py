@@ -1,8 +1,8 @@
 from os import system
 
-bench = 'c2670'
+bench = 'c880'
 nvecs = 5000
-ntriggers = 8
+ntriggers = 4
 nrandom = 100000
 ninst = 1000
 rareness = 0.1
