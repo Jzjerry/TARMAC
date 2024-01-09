@@ -567,3 +567,11 @@ void Visitor::sortRandomTestset(std::vector<std::string> &randvecs, std::multima
             testset.insert(std::make_pair(nhits, vec));
     }
 }
+
+int Visitor::countSafRemaining(){
+    int count = 0;
+    for (auto &e : g->edgArr){
+        count += (e.second->toDetect[0] ? (e.second->toDetect[1] ? 0 : 1) : (e.second->toDetect[1] ? 1 : 2));
+    }
+    return count;
+}

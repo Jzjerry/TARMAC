@@ -14,7 +14,6 @@
 
 class Graph;
 class Vertex;
-
 class Edge
 {
     friend class Vertex;
@@ -30,6 +29,10 @@ public:
     double lowProb;
     unsigned int level;
     unsigned int delay;
+
+    // SA0 , SA1
+    bool toDetect[2] = {false, false};
+
     std::shared_ptr<Vertex> fromNode;
     std::vector<std::shared_ptr<Vertex> > toNodes;
     z3::expr e;

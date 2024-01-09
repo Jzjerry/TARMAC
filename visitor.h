@@ -55,6 +55,12 @@ public:
      */
     void generateTrojan(std::string filename, unsigned int numTriggers, unsigned int numTrojans, bool asset = false);
     
+
+    /*
+     * Count SAF remaining
+    */
+    int countSafRemaining();
+
     /*
      * Simulate and test the number of triggerred condition
      * vecs: a number of test vectors

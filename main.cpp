@@ -56,10 +56,12 @@ int main(int argc, char* argv[]) {
     std::string debugFolder = "Debug";
     std::string trojanFolder = "Trojans_theta_" + threshold;
     std::string benchFolder = "benchmarks";
+    std::string faultFolder = "fault";
 
     if (createfolder(testFolder) == -1 ||
         createfolder(trojanFolder) == -1 ||
-        createfolder(debugFolder) == -1)
+        createfolder(debugFolder) == -1 ||
+        createfolder(faultFolder) == -1)
         return -1;
     
     srand(0);
@@ -84,8 +86,15 @@ int main(int argc, char* argv[]) {
     std::cout << "reading vectors from " + randFileName + "\n";
     readVectorsFromFile(randFileName, randvecs);
     
+    std::cout << g->reportGraph() << std::endl;
+
+    // Random Testing and Dumping Rare nodes
     std::string vecFileName = testFolder + "/" + tool + "_PI_" + bench + "_N1000_" + threshold + ".txt";
     Visitor vst(g, vecFileName, std::stof(threshold));
+    
+    std::cout << "SAF To Detect: " << vst.countSafRemaining() << std::endl;
+
+    start = std::chrono::system_clock::now();
     std::string nodeFileName = debugFolder + "/" + bench + "_nodes_" + threshold + ".txt";
     struct stat buffer;
     if (stat(nodeFileName.c_str(), &buffer) == 0) {
@@ -104,32 +113,30 @@ int main(int argc, char* argv[]) {
             vst.generateStat(randvecs);
         }
         std::cout << "Dumping low prob nodes to file " << nodeFileName << std::endl;
-        vst.dumpLowNodes(nodeFileName);
+        // vst.dumpLowNodes(nodeFileName);
     }
-
-    std::cout << "\n\nNumber of patterns: " << randvecs.size() << std::endl;
-    std::cout << "\n\nGraph Statistics ...\n";
-    std::cout << "Graph comb vertices: " << g->combGates.size() << std::endl;
-    std::cout << "Number of flip-flops: " << g->seqGates.size() << std::endl;
-    std::cout << "Graph Edges: " << g->edgArr.size() - g->seqGates.size() << std::endl;
+    elapsed_seconds = std::chrono::system_clock::now() - start;
+    std::cout << "Random simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/randvecs.size() << "s/vec, " << randvecs.size() <<" vectors)\n";
     std::cout << "Number of low prob edges: " << vst.lowprobEdges.size() << std::endl;
 
-    vst.generateTrojan(trojanFolder + "/" + bench + ".v_" + std::to_string(numTriggers) + ".trojans_" + std::to_string(numTrojans), numTriggers, numTrojans, !tool.compare("asset"));
+    std::cout << "SAF Undetected: " << vst.countSafRemaining() << std::endl;
+    // vst.generateTrojan(trojanFolder + "/" + bench + ".v_" + std::to_string(numTriggers) + ".trojans_" + std::to_string(numTrojans), numTriggers, numTrojans, !tool.compare("asset"));
+    return 0;
 
-    start = std::chrono::system_clock::now();
+    // start = std::chrono::system_clock::now();
     
-    std::vector<std::string> vecs;
-    if (stat(vecFileName.c_str(), &buffer) == 0) {
-        std::cout << "Reading " << tool << " vectors from file " << vecFileName << std::endl;
-        readVectorsFromFile(vecFileName, vecs);
-    } else if (tool.compare("MERO") == 0)
-        vst.MERO(vecs, randvecs, Ndetect);
-    else
-        vst.TARMAC(vecs, numVectors);
+    // std::vector<std::string> vecs;
+    // if (stat(vecFileName.c_str(), &buffer) == 0) {
+    //     std::cout << "Reading " << tool << " vectors from file " << vecFileName << std::endl;
+    //     readVectorsFromFile(vecFileName, vecs);
+    // } else if (tool.compare("MERO") == 0)
+    //     vst.MERO(vecs, randvecs, Ndetect);
+    // else
+    //     vst.TARMAC(vecs, numVectors);
     
-    elapsed_seconds = std::chrono::system_clock::now() - start;
-    std::cout << "test generation time: " << elapsed_seconds.count() << "s\n";
-    vst.triggerSim(vecs);
+    // elapsed_seconds = std::chrono::system_clock::now() - start;
+    // std::cout << "test generation time: " << elapsed_seconds.count() << "s\n";
+    // vst.triggerSim(vecs);
     return 0;
 }
 

@@ -52,6 +52,9 @@ public:
     bool topoSort();
     void setExpr();
 
+    // A report generator for the graph
+    std::string reportGraph();
+
     // constraint contains {edge name: val} that must be satisfied
     // use symbol 'X' to represent any
     std::string getSymbolInputFromConstraint(std::unordered_map<std::string, int> &constraint);

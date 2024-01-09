@@ -14,6 +14,7 @@
 #include <string.h>
 #include <ctime>
 #include <unordered_set>
+
 #include "graph.h"
 #include "edge.h"
 #include "vertex.h"
@@ -139,6 +140,9 @@ void Graph::evaluate() {
         auto &edg = v->outEdge;
         edg->delay = (edg->newVal != edg->oldVal) ? (maxDelay + 1) : 0;
     }
+    for (auto& edg : edgArr){
+        edg.second->toDetect[size_t(!edg.second->newVal)] = true;
+    };
 }
 
 void Graph::evaluate(std::shared_ptr<Edge> &edg) {
@@ -165,4 +169,21 @@ std::string Graph::getSymbolInputFromConstraint(std::unordered_map<std::string, 
         vec += (it == constraint.end()) ? 'X' : ((it->second == 0) ? '0' : '1');
     }
     return vec;
+}
+
+std::string Graph::reportGraph() {
+
+    std::stringstream report;
+
+    report << "------------------------------------" << "\n";
+    report << "Graph Report:" << "\n";
+    report << "------------------------------------" << "\n";
+    report << "No. of Primary Inputs: " << primInEdges.size() << "\n";
+    report << "No. of Primary Outputs: " << primOutEdges.size() << "\n";
+    report << "No. of Sequential Elements: " << seqGates.size() << "\n";
+    report << "No. of Gates: " << combGates.size() << "\n";
+    report << "No. of Edges: " << edgArr.size() << "\n";
+    report << "------------------------------------" << "\n";
+
+    return report.str();
 }
