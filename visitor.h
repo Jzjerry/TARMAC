@@ -23,6 +23,7 @@ class Visitor
 {
 public:
     std::vector<std::shared_ptr<Edge>> lowprobEdges;
+    std::vector<std::shared_ptr<Edge>> faultyEdges;
     std::vector<std::vector<std::shared_ptr<Edge>>> triggerInstances;
     std::vector<std::shared_ptr<Edge>> payloadInstances;
     
@@ -81,6 +82,7 @@ public:
      * vecs: keep generated test vectors
      */
     void TARMAC(std::vector<std::string> &vecs, unsigned int numVectors);
+    void TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors);
     void MERO(std::vector<std::string> &vecs, std::vector<std::string> &randvecs, const unsigned int Ndetect);
 
 private:

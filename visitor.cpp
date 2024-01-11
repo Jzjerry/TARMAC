@@ -467,6 +467,63 @@ void Visitor::TARMAC(std::vector<std::string> &vecs, unsigned int numVectors)
     fvec.close();
 }
 
+
+void Visitor::TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors){
+    const size_t faultSize = faultyEdges.size();
+    std::vector<size_t> line;
+    for (size_t i = 0; i < faultSize; ++i)
+        line.push_back(i);
+    ngbMatrix = std::vector<std::vector<size_t>>(faultSize, line);
+    for (size_t i = 0; i < faultSize; ++i)
+        ngbMatrix[i].erase(ngbMatrix[i].begin() + i);
+
+    z3::context &c = Edge::getContext();
+    z3::solver s(c);
+    for (size_t i = 0; i < numVectors; ++i) {
+        s.reset();
+        std::vector<size_t> faultEdgeComb;
+        int selectIdx = rand() % faultSize;
+        faultEdgeComb.push_back(selectIdx);
+        std::shared_ptr<Edge> selectedEdge = faultyEdges[selectIdx];
+
+        s.add(selectedEdge->e == selectedEdge->getSAF2Cover());
+        std::vector<size_t> P = ngbMatrix[selectIdx];
+        while (!P.empty()) {
+            selectIdx = rand() % P.size();
+            size_t select = P[selectIdx];
+            s.push();
+            s.add(faultyEdges[select]->e == faultyEdges[select]->getSAF2Cover());
+            z3::check_result result = s.check();
+            if (result == z3::sat) {
+                faultEdgeComb.push_back(select);
+                auto it = std::remove_if(P.begin(), P.end(), [this, &select](size_t &p){return !std::binary_search(ngbMatrix[select].begin(), ngbMatrix[select].end(), p);});
+                P.erase(it, P.end());
+            } else if (result == z3::unsat) {
+                P.erase(P.begin() + selectIdx);
+                s.pop();
+                if (faultEdgeComb.size() == 1){
+                    size_t prev = faultEdgeComb[0];
+                    auto it = std::lower_bound(ngbMatrix[prev].begin(), ngbMatrix[prev].end(), select);
+                    ngbMatrix[prev].erase(it);
+                    it = std::lower_bound(ngbMatrix[select].begin(), ngbMatrix[select].end(), prev);
+                    ngbMatrix[select].erase(it);
+                }
+            } else {
+                std::cerr << "Z3 unknown\n";
+            }
+        }
+        assert(s.check() == z3::sat);
+        std::unordered_map<std::string, int> assign;
+        z3::model m = s.get_model();
+        for (unsigned i = 0; i < m.size(); ++i) {
+            z3::func_decl v = m[i];
+            assign[v.name().str()] = m.get_const_interp(v).get_numeral_int();
+        }
+        std::string vec = getRandFromSym(g->getSymbolInputFromConstraint(assign));
+        vecs.push_back(vec);
+    }
+}
+
 std::string Visitor::getRandFromSym(const std::string &origvec)
 {
     int twopower = 16;
@@ -570,8 +627,30 @@ void Visitor::sortRandomTestset(std::vector<std::string> &randvecs, std::multima
 
 int Visitor::countSafRemaining(){
     int count = 0;
+    if(faultyEdges.empty() == false){
+        faultyEdges.clear();
+    }
     for (auto &e : g->edgArr){
-        count += (e.second->toDetect[0] ? (e.second->toDetect[1] ? 0 : 1) : (e.second->toDetect[1] ? 1 : 2));
+        std::shared_ptr<Edge> q = e.second;
+        int testable = 0;
+        // Stuck-at 0, Need to be 1
+        if(q->detected[0] == false){
+            if(q->solve(1))
+                testable++;
+            else
+                q->detected[0] = true; // Not teatable
+        }
+        // Stuck-at 1, Need to be 0      
+        if(q->detected[1] == false){
+            if(q->solve(0))
+                testable++;
+            else
+                q->detected[1] = true; // Not testable 
+        }
+        if(testable != 0){
+            faultyEdges.push_back(q);
+            count += testable;
+        }
     }
     return count;
 }

@@ -45,23 +45,21 @@ int main(int argc, char* argv[]) {
     }
     std::string bench = argv[1];
     unsigned int numRand = std::stoi(argv[2]);
-    unsigned int numTriggers = std::stoi(argv[3]);
-    unsigned int numTrojans = std::stoi(argv[4]);
-    unsigned int numVectors = std::stoi(argv[5]);
+    // unsigned int numTriggers = std::stoi(argv[3]);
+    // unsigned int numTrojans = std::stoi(argv[4]);
+    // unsigned int numVectors = std::stoi(argv[5]);
     std::string threshold = argv[6];
     std::string tool = argv[7];
-    const unsigned int Ndetect = 1000;
+    // const unsigned int Ndetect = 1000;
     
     std::string testFolder = "tests";
     std::string debugFolder = "Debug";
     std::string trojanFolder = "Trojans_theta_" + threshold;
     std::string benchFolder = "benchmarks";
-    std::string faultFolder = "fault";
 
     if (createfolder(testFolder) == -1 ||
         createfolder(trojanFolder) == -1 ||
-        createfolder(debugFolder) == -1 ||
-        createfolder(faultFolder) == -1)
+        createfolder(debugFolder) == -1)
         return -1;
     
     srand(0);
@@ -86,43 +84,41 @@ int main(int argc, char* argv[]) {
     std::cout << "reading vectors from " + randFileName + "\n";
     readVectorsFromFile(randFileName, randvecs);
     
-    std::cout << g->reportGraph() << std::endl;
+    std::cout << g->reportGraph();
+    
 
-    // Random Testing and Dumping Rare nodes
     std::string vecFileName = testFolder + "/" + tool + "_PI_" + bench + "_N1000_" + threshold + ".txt";
     Visitor vst(g, vecFileName, std::stof(threshold));
     
     std::cout << "SAF To Detect: " << vst.countSafRemaining() << std::endl;
 
-    start = std::chrono::system_clock::now();
-    std::string nodeFileName = debugFolder + "/" + bench + "_nodes_" + threshold + ".txt";
-    struct stat buffer;
-    if (stat(nodeFileName.c_str(), &buffer) == 0) {
-        std::cout << "Low prob nodes file exist. Skip simulation.\n";
-        std::cout << "Reading low prob nodes from file " << nodeFileName << std::endl;
-        vst.readLowNodes(nodeFileName);
-    } else {
-        std::cout << "Start simulation with random vectors.\n";
-        if (std::stof(threshold) > 1) {
-            // select the rarest $threshold edges
-            std::cout << "\tSelecting the " << threshold << " rarest signals\n";
-            vst.generateStat(randvecs, std::stoi(threshold));
-        } else {
-            // select the rare edges lower than $threshold
-            std::cout << "\tSelecting rare signals (activation probability less than threshold: " << threshold << " )\n";
-            vst.generateStat(randvecs);
-        }
-        std::cout << "Dumping low prob nodes to file " << nodeFileName << std::endl;
-        // vst.dumpLowNodes(nodeFileName);
-    }
-    elapsed_seconds = std::chrono::system_clock::now() - start;
-    std::cout << "Random simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/randvecs.size() << "s/vec, " << randvecs.size() <<" vectors)\n";
-    std::cout << "Number of low prob edges: " << vst.lowprobEdges.size() << std::endl;
+    // Random Testing and Dumping Rare nodes
+    // start = std::chrono::system_clock::now();
+    // std::string nodeFileName = debugFolder + "/" + bench + "_nodes_" + threshold + ".txt";
+    // std::cout << "Start simulation with random vectors.\n";
+    // // select the rarest $threshold edges
+    // std::cout << "\tSelecting the rarest 10 signals\n";
+    // vst.generateStat(randvecs, 10);
+    // std::cout << "Dumping low prob nodes to file " << nodeFileName << std::endl;
+    // vst.dumpLowNodes(nodeFileName);
 
+    // TARMAC ATPG 
+    std::string atpgFileName = testFolder + "/TARMAC" + "_PI_" + bench + ".txt";
+    std::ofstream fvec(atpgFileName.c_str()); 
+    std::vector<std::string> atpgvecs;
+    elapsed_seconds = std::chrono::system_clock::now() - start;
+    vst.TARMAC_ATPG(atpgvecs, 5);
+    std::cout << "ATPG Generation time: " << elapsed_seconds.count() << "s\n";
+    elapsed_seconds = std::chrono::system_clock::now() - start;
+    for(const auto& vec : atpgvecs){
+        vst.simOneVector(vec);
+        fvec << vec << std::endl;
+    }
+    fvec.close();
+    std::cout << "ATPG simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/atpgvecs.size() << "s/vec, " << atpgvecs.size() <<" vectors)\n";
     std::cout << "SAF Undetected: " << vst.countSafRemaining() << std::endl;
     // vst.generateTrojan(trojanFolder + "/" + bench + ".v_" + std::to_string(numTriggers) + ".trojans_" + std::to_string(numTrojans), numTriggers, numTrojans, !tool.compare("asset"));
-    return 0;
-
+    
     // start = std::chrono::system_clock::now();
     
     // std::vector<std::string> vecs;

@@ -31,7 +31,7 @@ public:
     unsigned int delay;
 
     // SA0 , SA1
-    bool toDetect[2] = {false, false};
+    bool detected[2] = {false, false};
 
     std::shared_ptr<Vertex> fromNode;
     std::vector<std::shared_ptr<Vertex> > toNodes;
@@ -49,6 +49,17 @@ public:
     static inline z3::context& getContext() {return c;}
     inline const z3::expr& getExpr() {return e;}
 
+    // ATPG support
+    inline int getSAF2Cover(){
+        if ((detected[0] || detected[1]) == false){
+            return rand() % 2;
+        } else if(detected[0] == false){
+            return 1;
+        } else if(detected[1] == false){
+            return 0;
+        }
+        return -1; // Edge already covered
+    }
     /*
      * check if e can be val
      */

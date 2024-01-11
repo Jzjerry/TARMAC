@@ -141,7 +141,7 @@ void Graph::evaluate() {
         edg->delay = (edg->newVal != edg->oldVal) ? (maxDelay + 1) : 0;
     }
     for (auto& edg : edgArr){
-        edg.second->toDetect[size_t(!edg.second->newVal)] = true;
+        edg.second->detected[size_t(!edg.second->newVal)] = true;
     };
 }
 
