@@ -59,8 +59,18 @@ public:
 
     /*
      * Count SAF remaining
+     * @date: Jan 2024
+     * @author: Jzjerry
     */
     int countSafRemaining();
+
+
+    /*
+     * Print Undetected SAF
+     * @date: Jan 2024
+     * @author: Jzjerry
+    */
+    void printUndetectedSaf();
 
     /*
      * Simulate and test the number of triggerred condition
@@ -82,7 +92,22 @@ public:
      * vecs: keep generated test vectors
      */
     void TARMAC(std::vector<std::string> &vecs, unsigned int numVectors);
+    
+    /*
+    * TARMAC ATPG for SAF
+    * numVectors: num of vectors
+    * @date: Jan 2024
+    * @author: Jzjerry
+    */
     void TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors);
+    void TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int numVectors);
+    /*
+    * test if a stuck-at fault is propagated
+    * @date: Jan 2024
+    * @author: Jzjerry
+    */
+    bool safPropagated(std::shared_ptr<Edge> &edge);
+    
     void MERO(std::vector<std::string> &vecs, std::vector<std::string> &randvecs, const unsigned int Ndetect);
 
 private:

@@ -140,17 +140,14 @@ void Graph::evaluate() {
         auto &edg = v->outEdge;
         edg->delay = (edg->newVal != edg->oldVal) ? (maxDelay + 1) : 0;
     }
-    for (auto& edg : edgArr){
-        edg.second->detected[size_t(!edg.second->newVal)] = true;
-    };
 }
 
 void Graph::evaluate(std::shared_ptr<Edge> &edg) {
     auto it = topoArr.begin();
     for (;it != topoArr.end(); ++it)
         if (std::find(edg->toNodes.begin(), edg->toNodes.end(), *it) != edg->toNodes.end())  break;
-    if (it == topoArr.end())
-        throw "Could not use primary output as payload";
+    // if (it == topoArr.end())
+    //     throw "Could not use primary output as payload";
     while (it != topoArr.end()) {
         (*it)->evaluate();
         unsigned int maxDelay = 0;
@@ -181,7 +178,7 @@ std::string Graph::reportGraph() {
     report << "No. of Primary Inputs: " << primInEdges.size() << "\n";
     report << "No. of Primary Outputs: " << primOutEdges.size() << "\n";
     report << "No. of Sequential Elements: " << seqGates.size() << "\n";
-    report << "No. of Gates: " << combGates.size() << "\n";
+    report << "No. of CombGates: " << combGates.size() << "\n";
     report << "No. of Edges: " << edgArr.size() << "\n";
     report << "------------------------------------" << "\n";
 

@@ -39,30 +39,26 @@ void genRandVectors(std::string filename, size_t length, unsigned int patterns);
 int createfolder(std::string foldername);
 
 int main(int argc, char* argv[]) {
-    if (argc < 8) {
+    if (argc < 4) {
         std::cerr << "Usage: " << argv[0] << " benchmark numRand numTriggers numTrojans numVectors trigthresh tool\n";
         return 1;
     }
     std::string bench = argv[1];
     unsigned int numRand = std::stoi(argv[2]);
-    // unsigned int numTriggers = std::stoi(argv[3]);
-    // unsigned int numTrojans = std::stoi(argv[4]);
-    // unsigned int numVectors = std::stoi(argv[5]);
-    std::string threshold = argv[6];
-    std::string tool = argv[7];
+    std::string tool = argv[3];
     // const unsigned int Ndetect = 1000;
     
     std::string testFolder = "tests";
     std::string debugFolder = "Debug";
-    std::string trojanFolder = "Trojans_theta_" + threshold;
+    // std::string trojanFolder = "Trojans_theta_" + threshold;
     std::string benchFolder = "benchmarks";
 
     if (createfolder(testFolder) == -1 ||
-        createfolder(trojanFolder) == -1 ||
+        // createfolder(trojanFolder) == -1 ||
         createfolder(debugFolder) == -1)
         return -1;
     
-    srand(0);
+    srand(42);
     
     Interpreter a(benchFolder + "/" + bench + ".v");
     auto start = std::chrono::system_clock::now();
@@ -87,52 +83,53 @@ int main(int argc, char* argv[]) {
     std::cout << g->reportGraph();
     
 
-    std::string vecFileName = testFolder + "/" + tool + "_PI_" + bench + "_N1000_" + threshold + ".txt";
-    Visitor vst(g, vecFileName, std::stof(threshold));
-    
-    std::cout << "SAF To Detect: " << vst.countSafRemaining() << std::endl;
-
-    // Random Testing and Dumping Rare nodes
-    // start = std::chrono::system_clock::now();
-    // std::string nodeFileName = debugFolder + "/" + bench + "_nodes_" + threshold + ".txt";
-    // std::cout << "Start simulation with random vectors.\n";
-    // // select the rarest $threshold edges
-    // std::cout << "\tSelecting the rarest 10 signals\n";
-    // vst.generateStat(randvecs, 10);
-    // std::cout << "Dumping low prob nodes to file " << nodeFileName << std::endl;
-    // vst.dumpLowNodes(nodeFileName);
+    std::string vecFileName = testFolder + "/" + tool + "_PI_" + bench + "_N1000_" + ".txt";
+    Visitor vst(g, vecFileName, 1);
+    int saf_total = vst.countSafRemaining();
+    std::cout << "SAF Total: " << g->edgArr.size() * 2 << " (2 * EdgeNum)\n";
+    std::cout << "SAF To Detect: " << saf_total << std::endl;
 
     // TARMAC ATPG 
-    std::string atpgFileName = testFolder + "/TARMAC" + "_PI_" + bench + ".txt";
-    std::ofstream fvec(atpgFileName.c_str()); 
-    std::vector<std::string> atpgvecs;
-    elapsed_seconds = std::chrono::system_clock::now() - start;
-    vst.TARMAC_ATPG(atpgvecs, 5);
-    std::cout << "ATPG Generation time: " << elapsed_seconds.count() << "s\n";
-    elapsed_seconds = std::chrono::system_clock::now() - start;
-    for(const auto& vec : atpgvecs){
-        vst.simOneVector(vec);
-        fvec << vec << std::endl;
+    if( tool == "TARMAC"){
+        std::string atpgFileName = testFolder + "/TARMAC" + "_PI_" + bench + ".txt";
+        std::vector<std::string> atpgvecs;
+        std::ofstream fvec(atpgFileName.c_str()); 
+        start = std::chrono::system_clock::now();
+        vst.TARMAC_ATPG_naive(atpgvecs, numRand);
+        elapsed_seconds = std::chrono::system_clock::now() - start;
+        std::cout << "ATPG Generation time: " << elapsed_seconds.count() << "s\n";
+        readVectorsFromFile(atpgFileName, atpgvecs);
+        start = std::chrono::system_clock::now();
+        for(const auto& vec : atpgvecs){
+            vst.simOneVector(vec);
+            for(auto &e : vst.faultyEdges){
+                if (!(e->detected[0] && e->detected[1])) // TODO: This is performance heavy!
+                    vst.safPropagated(e);
+            }
+            fvec << vec << std::endl;
+        }
+        fvec.close();
+        elapsed_seconds = std::chrono::system_clock::now() - start;
+        std::cout << "ATPG simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/atpgvecs.size() << "s/vec, " << atpgvecs.size() <<" vectors)\n";
     }
-    fvec.close();
-    std::cout << "ATPG simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/atpgvecs.size() << "s/vec, " << atpgvecs.size() <<" vectors)\n";
-    std::cout << "SAF Undetected: " << vst.countSafRemaining() << std::endl;
-    // vst.generateTrojan(trojanFolder + "/" + bench + ".v_" + std::to_string(numTriggers) + ".trojans_" + std::to_string(numTrojans), numTriggers, numTrojans, !tool.compare("asset"));
-    
-    // start = std::chrono::system_clock::now();
-    
-    // std::vector<std::string> vecs;
-    // if (stat(vecFileName.c_str(), &buffer) == 0) {
-    //     std::cout << "Reading " << tool << " vectors from file " << vecFileName << std::endl;
-    //     readVectorsFromFile(vecFileName, vecs);
-    // } else if (tool.compare("MERO") == 0)
-    //     vst.MERO(vecs, randvecs, Ndetect);
-    // else
-    //     vst.TARMAC(vecs, numVectors);
-    
-    // elapsed_seconds = std::chrono::system_clock::now() - start;
-    // std::cout << "test generation time: " << elapsed_seconds.count() << "s\n";
-    // vst.triggerSim(vecs);
+    else if( tool == "RANDOM"){
+        start = std::chrono::system_clock::now();
+        for(const auto& vec : randvecs){
+            vst.simOneVector(vec);
+            for(auto &e : vst.faultyEdges){
+                if (!(e->detected[0] && e->detected[1])) // TODO: This is performance heavy!
+                    vst.safPropagated(e);
+            }
+        }
+        elapsed_seconds = std::chrono::system_clock::now() - start;
+        std::cout << "Random simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/randvecs.size() << "s/vec, " << randvecs.size() <<" vectors)\n";
+
+    }
+    int saf_remain = vst.countSafRemaining();
+    std::cout << "SAF Undetected: " << saf_remain << std::endl;
+    // vst.printUndetectedSaf();
+    std::cout << "Coverage: " << (1-(double)saf_remain/saf_total)*100 << "%\n";
+
     return 0;
 }
 

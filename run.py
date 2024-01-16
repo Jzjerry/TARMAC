@@ -1,18 +1,14 @@
 from os import system
 
-bench = 'c880'
-nvecs = 5000
-ntriggers = 4
-nrandom = 100000
-ninst = 1000
-rareness = 0.1
+bench = 'test'
+nvecs = 4
 
-cmd = "./tarmac {0} {1} {2} {3} {4} {5} MERO".format(bench, nrandom, ntriggers, ninst, nvecs, rareness)
+cmd = "./tarmac {0} {1} TARMAC".format(bench, nvecs)
 print(cmd)
 system(cmd)
 
-print("--- --- --- --- --- --- ---")
+# print("--- --- --- --- --- --- ---")
 
-cmd = "./tarmac {0} {1} {2} {3} {4} {5} TARMAC".format(bench, nrandom, ntriggers, ninst, nvecs, rareness)
+cmd = "./tarmac {0} {1} RANDOM".format(bench, nvecs)
 print(cmd)
 system(cmd)

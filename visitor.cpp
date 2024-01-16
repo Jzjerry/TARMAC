@@ -467,32 +467,33 @@ void Visitor::TARMAC(std::vector<std::string> &vecs, unsigned int numVectors)
     fvec.close();
 }
 
-
-void Visitor::TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors){
+void Visitor::TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int numVectors){
     const size_t faultSize = faultyEdges.size();
     std::vector<size_t> line;
-    for (size_t i = 0; i < faultSize; ++i)
+    for (size_t i = 0; i < faultSize; ++i){
         line.push_back(i);
+    }
     ngbMatrix = std::vector<std::vector<size_t>>(faultSize, line);
     for (size_t i = 0; i < faultSize; ++i)
         ngbMatrix[i].erase(ngbMatrix[i].begin() + i);
 
     z3::context &c = Edge::getContext();
     z3::solver s(c);
-    for (size_t i = 0; i < numVectors; ++i) {
+    while (vecs.size() < numVectors) {
         s.reset();
         std::vector<size_t> faultEdgeComb;
         int selectIdx = rand() % faultSize;
         faultEdgeComb.push_back(selectIdx);
         std::shared_ptr<Edge> selectedEdge = faultyEdges[selectIdx];
-
-        s.add(selectedEdge->e == selectedEdge->getSAF2Cover());
+        int targetVal = selectedEdge->getSAF2Cover();
+        s.add(selectedEdge->e == targetVal);
         std::vector<size_t> P = ngbMatrix[selectIdx];
         while (!P.empty()) {
             selectIdx = rand() % P.size();
             size_t select = P[selectIdx];
             s.push();
-            s.add(faultyEdges[select]->e == faultyEdges[select]->getSAF2Cover());
+            int val = faultyEdges[select]->getSAF2Cover();
+            s.add(faultyEdges[select]->e == val);
             z3::check_result result = s.check();
             if (result == z3::sat) {
                 faultEdgeComb.push_back(select);
@@ -520,7 +521,9 @@ void Visitor::TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVector
             assign[v.name().str()] = m.get_const_interp(v).get_numeral_int();
         }
         std::string vec = getRandFromSym(g->getSymbolInputFromConstraint(assign));
-        vecs.push_back(vec);
+        if(std::find(vecs.begin(), vecs.end(), vec) == vecs.end())
+            vecs.push_back(vec);
+        if(vecs.size() >= std::pow(2, vec.size())) break;
     }
 }
 
@@ -637,15 +640,17 @@ int Visitor::countSafRemaining(){
         if(q->detected[0] == false){
             if(q->solve(1))
                 testable++;
-            else
+            else{
                 q->detected[0] = true; // Not teatable
+            }
         }
         // Stuck-at 1, Need to be 0      
         if(q->detected[1] == false){
             if(q->solve(0))
                 testable++;
-            else
+            else{
                 q->detected[1] = true; // Not testable 
+            }
         }
         if(testable != 0){
             faultyEdges.push_back(q);
@@ -653,4 +658,25 @@ int Visitor::countSafRemaining(){
         }
     }
     return count;
+}
+
+void Visitor::printUndetectedSaf(){
+    for (auto& e : faultyEdges){
+        std::cout << e->name << ": ";
+        if(e->detected[0] == false) std::cout << "SA0 ";
+        if(e->detected[1] == false) std::cout << "SA1 ";
+        std::cout << std::endl;
+    }
+}
+
+bool Visitor::safPropagated(std::shared_ptr<Edge> &edge){
+
+    g->dumpToOldVals();
+    edge->newVal = !edge->newVal;
+    g->evaluate(edge);
+    bool found = std::any_of(g->outEdges.begin(), g->outEdges.end(), [](std::shared_ptr<Edge> &edg) {return (edg->oldVal != edg->newVal);});
+    edge->detected[edge->newVal] |= found;
+    // restore old values to test next Trojan
+    g->restoreOldVals();
+    return found;
 }
