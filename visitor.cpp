@@ -398,85 +398,21 @@ bool Visitor::isTrigActivate(std::vector<std::shared_ptr<Edge>> &triggers) {
     return true;
 }
 
-void Visitor::TARMAC(std::vector<std::string> &vecs, unsigned int numVectors)
-{
-    const size_t lowSize = lowprobEdges.size();
-    std::cout << "Generating TARMAC vectors in file " << vecFilename << std::endl;
-    std::ofstream fvec(vecFilename.c_str());
-    
-    // initialize ngbMatrix
-    std::vector<size_t> line;
-    for (size_t i = 0; i < lowSize; ++i)
-        line.push_back(i);
-    ngbMatrix = std::vector<std::vector<size_t>>(lowSize, line);
-    for (size_t i = 0; i < lowSize; ++i)
-        ngbMatrix[i].erase(ngbMatrix[i].begin() + i);
-    
-    z3::context &c = Edge::getContext();
-    z3::solver s(c);
-    for (size_t i = 0; i < numVectors; ++i) {
-        s.reset();
-        std::vector<size_t> lowEdgeComb;
-        int selectIdx = rand() % lowSize;
-        lowEdgeComb.push_back(selectIdx);
-        s.add(lowprobEdges[selectIdx]->e == lowprobEdges[selectIdx]->lowProbVal);
-        std::vector<size_t> P = ngbMatrix[selectIdx];
-        while (!P.empty()) {
-            selectIdx = rand() % P.size();
-            size_t select = P[selectIdx];
-            s.push();
-            s.add(lowprobEdges[select]->e == lowprobEdges[select]->lowProbVal);
-            z3::check_result result = s.check();
-            if (result == z3::sat) {
-                lowEdgeComb.push_back(select);
-                auto it = std::remove_if(P.begin(), P.end(), [this, &select](size_t &p){return !std::binary_search(ngbMatrix[select].begin(), ngbMatrix[select].end(), p);});
-                P.erase(it, P.end());
-            } else if (result == z3::unsat) {
-                P.erase(P.begin() + selectIdx);
-                s.pop();
-                if (lowEdgeComb.size() == 1){
-                    size_t prev = lowEdgeComb[0];
-                    auto it = std::lower_bound(ngbMatrix[prev].begin(), ngbMatrix[prev].end(), select);
-#ifdef DEBUG
-                    assert(*it == select);
-#endif
-                    ngbMatrix[prev].erase(it);
-                    it = std::lower_bound(ngbMatrix[select].begin(), ngbMatrix[select].end(), prev);
-#ifdef DEBUG
-                    assert(*it == prev);
-#endif
-                    ngbMatrix[select].erase(it);
-                }
-            } else {
-                std::cerr << "Z3 unknown\n";
-            }
-        }
-        assert(s.check() == z3::sat);
-        std::unordered_map<std::string, int> assign;
-        z3::model m = s.get_model();
-        for (unsigned i = 0; i < m.size(); ++i) {
-            z3::func_decl v = m[i];
-            assign[v.name().str()] = m.get_const_interp(v).get_numeral_int();
-        }
-        std::string vec = getRandFromSym(g->getSymbolInputFromConstraint(assign));
-        vecs.push_back(vec);
-        fvec << vec << std::endl;
-    }
-    
-    std::cout << "Finish generating TARMAC vectors in file " << vecFilename << std::endl;
-    fvec.close();
-}
-
-void Visitor::TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int numVectors){
-    const size_t faultSize = faultyEdges.size();
+void Visitor::TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors){
+    const size_t faultSize = faultyEdges.size() * 2;
     std::vector<size_t> line;
     for (size_t i = 0; i < faultSize; ++i){
         line.push_back(i);
     }
     ngbMatrix = std::vector<std::vector<size_t>>(faultSize, line);
-    for (size_t i = 0; i < faultSize; ++i)
-        ngbMatrix[i].erase(ngbMatrix[i].begin() + i);
+    for (size_t i = 0; i < faultSize/2; ++i){
 
+        ngbMatrix[i*2].erase(ngbMatrix[i*2].begin() + i*2, 
+            ngbMatrix[i*2].begin() + i*2+2);
+
+        ngbMatrix[i*2+1].erase(ngbMatrix[i*2+1].begin() + i*2, 
+            ngbMatrix[i*2+1].begin() + i*2+2);
+    }
     z3::context &c = Edge::getContext();
     z3::solver s(c);
     while (vecs.size() < numVectors) {
@@ -484,16 +420,16 @@ void Visitor::TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int num
         std::vector<size_t> faultEdgeComb;
         int selectIdx = rand() % faultSize;
         faultEdgeComb.push_back(selectIdx);
-        std::shared_ptr<Edge> selectedEdge = faultyEdges[selectIdx];
-        int targetVal = selectedEdge->getSAF2Cover();
+        std::shared_ptr<Edge> selectedEdge = faultyEdges[selectIdx/2];
+        int targetVal = selectIdx % 2;
         s.add(selectedEdge->e == targetVal);
         std::vector<size_t> P = ngbMatrix[selectIdx];
         while (!P.empty()) {
             selectIdx = rand() % P.size();
             size_t select = P[selectIdx];
             s.push();
-            int val = faultyEdges[select]->getSAF2Cover();
-            s.add(faultyEdges[select]->e == val);
+            int val = select % 2;
+            s.add(faultyEdges[select/2]->e == val);
             z3::check_result result = s.check();
             if (result == z3::sat) {
                 faultEdgeComb.push_back(select);
@@ -521,6 +457,62 @@ void Visitor::TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int num
             assign[v.name().str()] = m.get_const_interp(v).get_numeral_int();
         }
         std::string vec = getRandFromSym(g->getSymbolInputFromConstraint(assign));
+        if(std::find(vecs.begin(), vecs.end(), vec) == vecs.end())
+            vecs.push_back(vec);
+        if(vecs.size() >= std::pow(2, vec.size())) break;
+    }
+}
+
+void Visitor::SAT_ATPG(std::vector<std::string> &vecs, unsigned int numVectors){
+
+    while(vecs.size() < numVectors && !faultyEdges.empty()){
+        // Select a random edge with undetected fault
+        const size_t faultSize = faultyEdges.size();
+        size_t select = rand() % faultSize;
+        std::shared_ptr<Edge> selectedEdge = faultyEdges[select];
+
+        // Reset solver context 
+        z3::context &c = Edge::getContext();
+        z3::solver s(c);
+        s.reset();
+
+        // Choose SA Value
+        // int trigVal;
+        // if (selectedEdge->todetect[1] == false){
+        //     // To detect stuck-at 1 fault
+        //     trigVal = 0;
+        // } else if(selectedEdge->todetect[0] == false){
+        //     // To detect stuck-at 0 fault
+        //     trigVal = 1;
+        // }
+        // s.add(selectedEdge->e == trigVal);
+
+        // Random Path Sentization
+        std::shared_ptr<Edge> nextEdge = selectedEdge;
+        while(nextEdge->toNodes.size()){
+            std::shared_ptr<Edge> lastEdge = nextEdge;
+            std::shared_ptr<Vertex> nextNode = 
+                nextEdge->toNodes[rand() % nextEdge->toNodes.size()];
+            nextEdge = nextNode->outEdge;
+            s.push();
+            s.add(nextEdge->e == lastEdge->e || 
+                nextEdge->e == ~lastEdge->e);
+            if(s.check() == z3::unsat){
+                s.pop();
+                nextEdge = lastEdge;
+            }
+        }
+        // Generate vector from the solver
+        assert(s.check() == z3::sat);
+        faultyEdges.erase(faultyEdges.begin() + select);
+        std::unordered_map<std::string, int> assign;
+        z3::model m = s.get_model();
+        for (unsigned i = 0; i < m.size(); ++i) {
+            z3::func_decl v = m[i];
+            assign[v.name().str()] = m.get_const_interp(v).get_numeral_int();
+        }
+        std::string vec = getRandFromSym(g->getSymbolInputFromConstraint(assign));
+        std::cout << g->getSymbolInputFromConstraint(assign) << std::endl;
         if(std::find(vecs.begin(), vecs.end(), vec) == vecs.end())
             vecs.push_back(vec);
         if(vecs.size() >= std::pow(2, vec.size())) break;
@@ -671,6 +663,10 @@ void Visitor::printUndetectedSaf(){
 
 bool Visitor::safPropagated(std::shared_ptr<Edge> &edge){
 
+    if(edge->detected[0]&&edge->detected[1]){
+        return true;
+    }
+    
     g->dumpToOldVals();
     edge->newVal = !edge->newVal;
     g->evaluate(edge);

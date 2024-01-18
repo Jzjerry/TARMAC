@@ -15,6 +15,7 @@
 #include <unordered_map>
 #include <vector>
 #include <map>
+#include <chrono>
 
 class Graph;
 class Edge;
@@ -100,7 +101,7 @@ public:
     * @author: Jzjerry
     */
     void TARMAC_ATPG(std::vector<std::string> &vecs, unsigned int numVectors);
-    void TARMAC_ATPG_naive(std::vector<std::string> &vecs, unsigned int numVectors);
+    void SAT_ATPG(std::vector<std::string> &vecs, unsigned int numVectors);
     /*
     * test if a stuck-at fault is propagated
     * @date: Jan 2024
@@ -110,6 +111,17 @@ public:
     
     void MERO(std::vector<std::string> &vecs, std::vector<std::string> &randvecs, const unsigned int Ndetect);
 
+    void simFault(const std::vector<std::string> &vecs){
+            auto start = std::chrono::system_clock::now();
+            for(const auto& vec : vecs){
+                simOneVector(vec);
+                for(auto e : faultyEdges){
+                    safPropagated(e);
+                }
+            }
+            std::chrono::duration<double> elapsed_seconds = std::chrono::system_clock::now() - start;
+            std::cout << "Simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/vecs.size() << "s/vec, " << vecs.size() <<" vectors)\n";
+    }
 private:
     std::shared_ptr<Graph> g;
     const int SEQSTATES = 1;

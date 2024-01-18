@@ -39,13 +39,14 @@ void genRandVectors(std::string filename, size_t length, unsigned int patterns);
 int createfolder(std::string foldername);
 
 int main(int argc, char* argv[]) {
-    if (argc < 4) {
-        std::cerr << "Usage: " << argv[0] << " benchmark numRand numTriggers numTrojans numVectors trigthresh tool\n";
+    if (argc < 5) {
+        std::cerr << "Usage: " << argv[0] << " benchmark numRand tool seed\n";
         return 1;
     }
     std::string bench = argv[1];
     unsigned int numRand = std::stoi(argv[2]);
     std::string tool = argv[3];
+    int seed = std::stoi(argv[4]);
     // const unsigned int Ndetect = 1000;
     
     std::string testFolder = "tests";
@@ -90,40 +91,29 @@ int main(int argc, char* argv[]) {
     std::cout << "SAF To Detect: " << saf_total << std::endl;
 
     // TARMAC ATPG 
-    if( tool == "TARMAC"){
-        std::string atpgFileName = testFolder + "/TARMAC" + "_PI_" + bench + ".txt";
+    if(tool == "TARMAC"){
+        std::string atpgFileName = testFolder + "/TARMACPRO" + "_PI_" + bench + ".txt";
         std::vector<std::string> atpgvecs;
         std::ofstream fvec(atpgFileName.c_str()); 
         start = std::chrono::system_clock::now();
-        vst.TARMAC_ATPG_naive(atpgvecs, numRand);
+        vst.TARMAC_ATPG(atpgvecs, numRand);
         elapsed_seconds = std::chrono::system_clock::now() - start;
         std::cout << "ATPG Generation time: " << elapsed_seconds.count() << "s\n";
         readVectorsFromFile(atpgFileName, atpgvecs);
-        start = std::chrono::system_clock::now();
+        vst.simFault(atpgvecs);
         for(const auto& vec : atpgvecs){
-            vst.simOneVector(vec);
-            for(auto &e : vst.faultyEdges){
-                if (!(e->detected[0] && e->detected[1])) // TODO: This is performance heavy!
-                    vst.safPropagated(e);
-            }
             fvec << vec << std::endl;
         }
         fvec.close();
-        elapsed_seconds = std::chrono::system_clock::now() - start;
-        std::cout << "ATPG simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/atpgvecs.size() << "s/vec, " << atpgvecs.size() <<" vectors)\n";
     }
-    else if( tool == "RANDOM"){
-        start = std::chrono::system_clock::now();
-        for(const auto& vec : randvecs){
-            vst.simOneVector(vec);
-            for(auto &e : vst.faultyEdges){
-                if (!(e->detected[0] && e->detected[1])) // TODO: This is performance heavy!
-                    vst.safPropagated(e);
-            }
-        }
-        elapsed_seconds = std::chrono::system_clock::now() - start;
-        std::cout << "Random simulation time: " << elapsed_seconds.count() << "s (" << elapsed_seconds.count()/randvecs.size() << "s/vec, " << randvecs.size() <<" vectors)\n";
-
+    else if(tool == "RANDOM"){
+        vst.simFault(randvecs);
+    }
+    else if(tool == "SAT"){
+        std::vector<std::string> satvecs;
+        vst.SAT_ATPG(satvecs, numRand);
+        vst.countSafRemaining();
+        vst.simFault(satvecs);
     }
     int saf_remain = vst.countSafRemaining();
     std::cout << "SAF Undetected: " << saf_remain << std::endl;

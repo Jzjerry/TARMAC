@@ -6,7 +6,7 @@ INCLUDE =
 # LIBRARY = $(ROOT)/lib
 
 CC = g++
-CFLAGS = -g -D DEBUG -O3 -I$(INCLUDE) -std=c++17 -Wall
+CFLAGS = -g -D DEBUG -O0 -I$(INCLUDE) -std=c++17 -Wall
 
 all: tarmac
 

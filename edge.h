@@ -32,6 +32,7 @@ public:
 
     // SA0 , SA1
     bool detected[2] = {false, false};
+    bool todetect[2] = {false, false};
 
     std::shared_ptr<Vertex> fromNode;
     std::vector<std::shared_ptr<Vertex> > toNodes;
